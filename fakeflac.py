@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 
 # uncomment for debugging:
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy
 from scipy.fftpack import rfft
 from scipy.io.wavfile import read
 from scipy.signal import hann
 import sys
 import warnings
+import argparse
 
 
 def moving_average(a, w):
@@ -32,6 +33,7 @@ def find_cutoff(a, dx, diff, limit):
       return a.shape[0] - i - dx
   return a.shape[0]
 
+#################################################
 
 # print usage if no argument given
 if len(sys.argv[1:]) < 1:
@@ -40,9 +42,17 @@ if len(sys.argv[1:]) < 1:
 
 # read audio samples and ignore warnings, print errors
 try:
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-plot', '--plot', action='store_true', 
+    help="shows plot")
+  parser.add_argument('fname')
+  args = parser.parse_args()
+  if args.plot:
+    print("Will plot")
+    
   with warnings.catch_warnings():
     warnings.simplefilter('ignore')
-    input_data = read(sys.argv[1])
+    input_data = read(args.fname)
 except IOError as e:
   print(e[1])
   sys.exit(e[0])
@@ -50,8 +60,13 @@ except IOError as e:
 # process data
 freq = input_data[0]
 audio = input_data[1]
-channel = 0
-samples = len(audio[:, 0])
+
+if len(audio.shape) > 1:
+  channel = 0 # look at left channel, or mono 
+  audio = audio[:, channel]
+
+samples = len(audio)
+#samples = audio.shape[0]
 seconds = int(samples / freq)
 seconds = min(seconds, 30)
 spectrum = [0] * freq
@@ -60,7 +75,7 @@ spectrum = [0] * freq
 for t in range(0, seconds - 1):
   # apply hanning window
   window = hann(freq)
-  audio_second = audio[t * freq:(t + 1) * freq, channel] * window
+  audio_second = audio[t * freq:(t + 1) * freq] * window
   # do fft to add second to frequency spectrum
   spectrum += abs(rfft(audio_second))
 
@@ -74,20 +89,21 @@ spectrum = moving_average(spectrum, freq / 100)
 cutoff = find_cutoff(spectrum, freq / 50, 1.25, 1.1)
 # print percentage of frequency spectrum before cutoff
 out = (int((cutoff * 100) / freq))
-print(out)
+print(f"Spectrum before cutoff: {out}% {cutoff}Hz")
+
+  
+if args.plot:
+  plt.plot(spectrum)
+  plt.ylabel('Magnitude')
+  plt.xlabel('Frequency')
+  plt.title(f"Spectrum before cutoff: {out}%, {cutoff}Hz")
+  plt.grid()
+  plt.axis((0, 45000, 0, 10))
+  plt.show()
+
 if out == 100:
   sys.exit(0)
 else:
   sys.exit(1)
 
-# debugging only:
-if 'plt' in globals():
-  # plot
-  plt.plot(spectrum)
-  # label the axes
-  plt.ylabel('Magnitude')
-  plt.xlabel('Frequency')
-  # set the title
-  plt.title('Spectrum')
-  plt.axis((0, 45000, 0, 10))
-  plt.show()
+  

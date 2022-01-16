@@ -19,12 +19,22 @@ if [ $# -eq 0 ]; then
   exit 0
 fi
 
+plot=""
+
 for CURR_FILE in "$@"
 do
+    if [ "$CURR_FILE" == "--plot" ]; then
+	plot="--plot"
+	continue
+    fi
     $CONVERT "$CURR_FILE" "/tmp/fakeflac_$$.wav"
     if [ -f "/tmp/fakeflac_$$.wav" ]; then
-      echo -n "$(basename $0): $CURR_FILE: "  >&2
-      python "$(dirname $BASH_SOURCE)/fakeflac.py" "/tmp/fakeflac_$$.wav"
+	echo -n "$(basename $0): $CURR_FILE: "  >&2
+	if [ $plot != "" ]; then 
+	    python3 "$(dirname $BASH_SOURCE)/fakeflac.py" "$plot" "/tmp/fakeflac_$$.wav"
+	else
+	    python3 "$(dirname $BASH_SOURCE)/fakeflac.py" "/tmp/fakeflac_$$.wav"
+	fi
       RESULT=$?
       rm "/tmp/fakeflac_$$.wav"
     fi
